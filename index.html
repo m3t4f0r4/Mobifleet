@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MobiFleet España - Marketplace Nacional de Alquiler Multimodal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            900: '#0f172a'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        /* Fixed, Pixel-Perfect Wheel Selector Layout */
+        .wheel-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            height: 480px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .wheel-ring-svg {
+            position: absolute;
+            width: 380px;
+            height: 380px;
+            pointer-events: none;
+        }
+
+        .wheel-center-card {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 35px -5px rgba(37, 99, 235, 0.25);
+            transition: all 0.3s ease;
+        }
+
+        .bubble-node {
+            position: absolute;
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.12);
+            z-index: 20;
+            left: 50%;
+            top: 50%;
+            margin-left: -36px;
+            margin-top: -36px;
+        }
+
+        .bubble-node:hover {
+            transform: translate(var(--tx), var(--ty)) scale(1.18) !important;
+            z-index: 35;
+        }
+
+        .bubble-node.active-node {
+            transform: translate(var(--tx), var(--ty)) scale(1.15) !important;
+            box-shadow: 0 12px 25px -4px rgba(37, 99, 235, 0.4);
+            z-index: 30;
+        }
+
+        @media (max-width: 640px) {
+            .wheel-wrapper {
+                max-width: 340px;
+                height: 340px;
+            }
+            .wheel-ring-svg {
+                width: 260px;
+                height: 260px;
+            }
+            .wheel-center-card {
+                width: 110px;
+                height: 110px;
+            }
+            .bubble-node {
+                width: 52px;
+                height: 52px;
+                margin-left: -26px;
+                margin-top: -26px;
+            }
+            .bubble-node i {
+                font-size: 1rem !important;
+            }
+            .bubble-node span {
+                font-size: 8px !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-200 min-h-screen flex flex-col">
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="showView('public')">
+                <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-brand-500/30">
+                    <i class="fa-solid fa-paper-plane text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Mobi<span class="text-brand-600">Fleet</span></span>
+                    <span class="block text-[10px] uppercase font-bold tracking-widest text-slate-400 -mt-1">España</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-4">
+                <button id="theme-toggle" onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+                    <i id="theme-toggle-dark-icon" class="fa-solid fa-moon text-lg hidden"></i>
+                    <i id="theme-toggle-light-icon" class="fa-solid fa-sun text-lg text-amber-400"></i>
+                </button>
+
+                <button onclick="showView('public')" class="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-compass"></i> Marketplace
+                </button>
+                <button id="btn-nav-provider" onclick="showView('provider')" class="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-store"></i> Panel Proveedor
+                </button>
+                <button id="btn-nav-admin" onclick="showView('admin')" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800">
+                    <i class="fa-solid fa-user-shield"></i> CMS Admin
+                </button>
+
+                <button onclick="openAuthModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-md shadow-brand-500/20 transition">
+                    <i class="fa-solid fa-user-plus mr-1"></i> Acceso / Registro
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main View Container -->
+    <main class="flex-grow">
+        <!-- Marketplace View -->
+        <section id="view-public" class="space-y-10 pb-16">
+            <!-- Hero Header -->
+            <div class="bg-gradient-to-b from-brand-50 via-slate-50 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 pt-8 pb-6 border-b border-slate-200 dark:border-slate-800">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-3">
+                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-location-dot"></i> Marketplace Nacional de Alquiler
+                    </span>
+                    <h1 class="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
+                        Alquila cualquier vehículo en España
+                    </h1>
+                    <p class="max-w-2xl mx-auto text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                        Haz clic en cualquiera de los iconos en el círculo para cambiar el tipo de movilidad.
+                    </p>
+
+                    <!-- Filter Control Bar -->
+                    <div class="max-w-3xl mx-auto bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-3 text-left">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ubicación</label>
+                            <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <i class="fa-solid fa-map-pin text-brand-500"></i>
+                                <select id="search-city" onchange="renderFleetCards()" class="bg-transparent w-full text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none">
+                                    <option value="Todas las provincias">Todas las provincias de España</option>
+                                    <option value="Madrid">Madrid</option>
+                                    <option value="Barcelona">Barcelona</option>
+                                    <option value="Valencia">Valencia</option>
+                                    <option value="Sevilla">Sevilla</option>
+                                    <option value="Málaga">Málaga</option>
+                                    <option value="Cádiz">Cádiz</option>
+                                    <option value="Bilbao">Bilbao</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recogida</label>
+                            <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <i class="fa-regular fa-calendar-check text-brand-500"></i>
+                                <input type="date" id="search-date-start" value="2026-11-01" onchange="renderFleetCards()" class="bg-transparent w-full text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Devolución</label>
+                            <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <i class="fa-regular fa-calendar-xmark text-brand-500"></i>
+                                <input type="date" id="search-date-end" value="2026-11-05" onchange="renderFleetCards()" class="bg-transparent w-full text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fixed Circle Wheel Selector Section -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="wheel-wrapper">
+                    <!-- SVG Circular Ring -->
+                    <svg class="wheel-ring-svg" viewBox="0 0 380 380">
+                        <circle cx="190" cy="190" r="180" fill="none" stroke="currentColor" class="text-brand-500/20" stroke-width="2" stroke-dasharray="8 6" />
+                    </svg>
+
+                    <!-- Center Display Hub -->
+                    <div id="wheel-center-hub" class="wheel-center-card bg-white dark:bg-slate-800 border-2 border-brand-500/40 text-center p-3">
+                        <!-- Rendered by JS -->
+                    </div>
+
+                    <!-- 9 Outer Orbit Bubbles (Precisely position-calculated) -->
+                    <div id="wheel-bubbles-container">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fleet Results Grid -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+                    <div>
+                        <h3 id="fleet-category-title" class="text-2xl font-black text-slate-900 dark:text-white">Vehículos Disponibles</h3>
+                        <p id="fleet-category-subtitle" class="text-xs text-slate-500 dark:text-slate-400">Catálogo completo de la categoría</p>
+                    </div>
+                    <span id="fleet-count-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300">
+                        0 Opciones
+                    </span>
+                </div>
+
+                <div id="fleet-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Cards rendered via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- CMS Admin View -->
+        <section id="view-admin" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <div class="bg-indigo-900 text-white p-6 rounded-3xl shadow-xl flex items-center justify-between">
+                <div>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-800 text-indigo-200 text-xs font-bold uppercase tracking-wider mb-2">
+                        <i class="fa-solid fa-shield-halved"></i> CMS Panel de Administración
+                    </span>
+                    <h2 class="text-2xl font-black">MobiFleet Control Hub</h2>
+                    <p class="text-xs text-indigo-200">Gestión de proveedores, validación documental y clientes</p>
+                </div>
+                <button onclick="seedDatabase()" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-800 hover:bg-indigo-700 text-white transition">
+                    <i class="fa-solid fa-rotate-right mr-1"></i> Reset Datos
+                </button>
+            </div>
+
+            <!-- Pending Approvals Table -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-200 dark:border-slate-700">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Solicitudes de Proveedores Pendientes</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-900 text-slate-400 font-bold uppercase">
+                            <tr>
+                                <th class="p-4">Empresa</th>
+                                <th class="p-4">Categoría</th>
+                                <th class="p-4">Provincia</th>
+                                <th class="p-4 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cms-pending-tbody" class="divide-y divide-slate-100 dark:divide-slate-700">
+                            <!-- JS Rendered -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Provider Portal View -->
+        <section id="view-provider" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+            <div id="provider-banner-status"></div>
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white">Panel de Gestión de Flota</h2>
+                <button id="btn-add-vehicle" onclick="openAddVehicleModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white hover:bg-brand-700 transition">
+                    <i class="fa-solid fa-plus mr-1"></i> Publicar Vehículo
+                </button>
+            </div>
+            <div id="provider-fleet-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+    </main>
+
+    <!-- Modal Registro -->
+    <div id="modal-auth" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 max-w-md w-full rounded-3xl p-6 space-y-6 border border-slate-200 dark:border-slate-700 relative">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="text-center">
+                <h3 class="text-2xl font-black text-slate-900 dark:text-white">Acceso a MobiFleet</h3>
+                <p class="text-xs text-slate-400 mt-1">Crea tu cuenta de cliente o proveedor</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+                <button id="tab-role-client" onclick="setRegisterRole('client')" class="py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Cliente</button>
+                <button id="tab-role-provider" onclick="setRegisterRole('provider')" class="py-2 rounded-lg text-xs font-bold text-slate-500">Proveedor</button>
+            </div>
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <input type="hidden" id="auth-role" value="client">
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-slate-400">Nombre / Empresa</label>
+                    <input type="text" id="auth-name" required placeholder="Nombre comercial" class="w-full mt-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-slate-400">Email</label>
+                    <input type="email" id="auth-email" required placeholder="correo@empresa.com" class="w-full mt-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+                </div>
+                <button type="submit" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs transition">Completar Registro</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        const MOBILITY_CATEGORIES = [
+            { id: 'Bicicletas', label: 'Bicicletas', icon: 'fa-bicycle', color: 'bg-emerald-500', count: 12 },
+            { id: 'Turismos', label: 'Turismos', icon: 'fa-car', color: 'bg-blue-500', count: 28 },
+            { id: 'Motos', label: 'Motos', icon: 'fa-motorcycle', color: 'bg-amber-500', count: 18 },
+            { id: 'Furgonetas', label: 'Furgonetas', icon: 'fa-van-shuttle', color: 'bg-indigo-500', count: 15 },
+            { id: 'Campers', label: 'Campers', icon: 'fa-caravan', color: 'bg-teal-500', count: 9 },
+            { id: 'Camiones', label: 'Camiones', icon: 'fa-truck-front', color: 'bg-orange-500', count: 7 },
+            { id: 'Autobuses', label: 'Autobuses', icon: 'fa-bus', color: 'bg-purple-500', count: 5 },
+            { id: 'Avionetas', label: 'Avionetas', icon: 'fa-plane', color: 'bg-sky-500', count: 4 },
+            { id: 'Helicópteros', label: 'Helicópteros', icon: 'fa-helicopter', color: 'bg-rose-500', count: 3 }
+        ];
+
+        let appState = {
+            selectedCategory: 'Turismos',
+            users: [
+                { id: 'u1', name: 'Alquileres Centro S.L.', email: 'info@alquilerescentro.es', role: 'provider', status: 'approved', city: 'Madrid', category: 'Turismos' },
+                { id: 'u2', name: 'EcoBikes Sevilla', email: 'contacto@ecobikes.es', role: 'provider', status: 'approved', city: 'Sevilla', category: 'Bicicletas' },
+                { id: 'u3', name: 'FlyAndes Aviación', email: 'operaciones@flyandes.es', role: 'provider', status: 'pending', city: 'Madrid', category: 'Avionetas' }
+            ],
+            fleet: [
+                { id: 'f1', title: 'Tesla Model 3 Long Range', category: 'Turismos', price: 65, city: 'Madrid', providerName: 'Alquileres Centro S.L.', rating: 4.9, icon: 'fa-car' },
+                { id: 'f2', title: 'Seat León Sportstourer', category: 'Turismos', price: 38, city: 'Madrid', providerName: 'Alquileres Centro S.L.', rating: 4.7, icon: 'fa-car' },
+                { id: 'f3', title: 'Specialized E-Bike Urbana', category: 'Bicicletas', price: 18, city: 'Sevilla', providerName: 'EcoBikes Sevilla', rating: 4.8, icon: 'fa-bicycle' },
+                { id: 'f4', title: 'Ford Transit Carga 12m3', category: 'Furgonetas', price: 55, city: 'Madrid', providerName: 'Alquileres Centro S.L.', rating: 4.6, icon: 'fa-van-shuttle' },
+                { id: 'f5', title: 'Cessna 172 Skyhawk', category: 'Avionetas', price: 240, city: 'Madrid', providerName: 'FlyAndes Aviación', rating: 5.0, icon: 'fa-plane' }
+            ]
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            renderCircleWheel();
+            renderFleetCards();
+        });
+
+        function initTheme() {
+            if (localStorage.getItem('mobifleet_theme') === 'dark') {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-toggle-dark-icon').classList.remove('hidden');
+                document.getElementById('theme-toggle-light-icon').classList.add('hidden');
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('mobifleet_theme', isDark ? 'dark' : 'light');
+            document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden', !isDark);
+            document.getElementById('theme-toggle-light-icon').classList.toggle('hidden', isDark);
+        }
+
+        function showView(viewName) {
+            document.getElementById('view-public').classList.add('hidden');
+            document.getElementById('view-admin').classList.add('hidden');
+            document.getElementById('view-provider').classList.add('hidden');
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+            if (viewName === 'admin') updateCMSView();
+        }
+
+        // PERFECT CIRCLE WHEEL RENDERER
+        function renderCircleWheel() {
+            const container = document.getElementById('wheel-bubbles-container');
+            const centerHub = document.getElementById('wheel-center-hub');
+            container.innerHTML = '';
+
+            const isMobile = window.innerWidth < 640;
+            const radius = isMobile ? 130 : 190;
+            const total = MOBILITY_CATEGORIES.length;
+
+            MOBILITY_CATEGORIES.forEach((cat, idx) => {
+                const angle = (idx / total) * 2 * Math.PI - (Math.PI / 2);
+                const x = Math.round(radius * Math.cos(angle));
+                const y = Math.round(radius * Math.sin(angle));
+
+                const isActive = cat.id === appState.selectedCategory;
+
+                const node = document.createElement('div');
+                node.className = `bubble-node ${isActive ? 'active-node bg-brand-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-brand-50'}`;
+                node.style.setProperty('--tx', `${x}px`);
+                node.style.setProperty('--ty', `${y}px`);
+                node.style.transform = `translate(${x}px, ${y}px)`;
+                node.onclick = () => {
+                    appState.selectedCategory = cat.id;
+                    renderCircleWheel();
+                    renderFleetCards();
+                };
+
+                node.innerHTML = `
+                    <i class="fa-solid ${cat.icon} text-lg"></i>
+                    <span class="text-[9px] font-bold tracking-tight">${cat.label}</span>
+                `;
+
+                container.appendChild(node);
+
+                if (isActive) {
+                    centerHub.innerHTML = `
+                        <div class="w-10 h-10 rounded-xl ${cat.color} text-white flex items-center justify-center text-lg mb-1">
+                            <i class="fa-solid ${cat.icon}"></i>
+                        </div>
+                        <h4 class="text-xs font-black text-slate-900 dark:text-white">${cat.label}</h4>
+                        <span class="text-[9px] font-bold text-slate-400">${cat.count} Unidades</span>
+                    `;
+                }
+            });
+        }
+
+        function renderFleetCards() {
+            const grid = document.getElementById('fleet-grid');
+            const title = document.getElementById('fleet-category-title');
+            const subtitle = document.getElementById('fleet-category-subtitle');
+            const badge = document.getElementById('fleet-count-badge');
+            const city = document.getElementById('search-city').value;
+
+            title.innerText = `Flota: ${appState.selectedCategory}`;
+            subtitle.innerText = city === 'Todas las provincias' ? 'Filtro: Toda España' : `Filtro: ${city}`;
+
+            let list = appState.fleet.filter(f => f.category === appState.selectedCategory);
+            if (city !== 'Todas las provincias') {
+                list = list.filter(f => f.city === city);
+            }
+
+            badge.innerText = `${list.length} Opciones`;
+            grid.innerHTML = '';
+
+            if (list.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 font-bold">No hay vehículos disponibles en esta categoría o provincia.</div>`;
+                return;
+            }
+
+            list.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3";
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-300"><i class="fa-solid fa-location-dot"></i> ${item.city}</span>
+                        <span class="text-xs font-bold text-amber-500"><i class="fa-solid fa-star"></i> ${item.rating}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-600 flex items-center justify-center font-bold">
+                            <i class="fa-solid ${item.icon}"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 dark:text-white text-sm">${item.title}</h4>
+                            <p class="text-xs text-slate-400">${item.providerName}</p>
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                        <p class="text-base font-black text-brand-600">${item.price} € <span class="text-xs font-normal text-slate-400">/día</span></p>
+                        <button onclick="alert('Solicitando reserva para ${item.title}')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-brand-600 text-white">Reservar</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function updateCMSView() {
+            const pendingList = appState.users.filter(u => u.role === 'provider' && u.status === 'pending');
+            const tbody = document.getElementById('cms-pending-tbody');
+            tbody.innerHTML = '';
+
+            if (pendingList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Sin solicitudes pendientes</td></tr>`;
+            } else {
+                pendingList.forEach(u => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="p-4 font-bold text-slate-800 dark:text-slate-100">${u.name}</td>
+                        <td class="p-4">${u.category}</td>
+                        <td class="p-4">${u.city}</td>
+                        <td class="p-4 text-center space-x-2">
+                            <button onclick="approveProvider('${u.id}')" class="px-3 py-1 bg-emerald-600 text-white rounded-lg font-bold">Aprobar</button>
+                            <button onclick="rejectProvider('${u.id}')" class="px-3 py-1 bg-rose-600 text-white rounded-lg font-bold">Rechazar</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        }
+
+        function approveProvider(id) {
+            const u = appState.users.find(user => user.id === id);
+            if (u) { u.status = 'approved'; updateCMSView(); }
+        }
+
+        function rejectProvider(id) {
+            appState.users = appState.users.filter(u => u.id !== id);
+            updateCMSView();
+        }
+
+        function openAuthModal() { document.getElementById('modal-auth').classList.remove('hidden'); }
+        function closeAuthModal() { document.getElementById('modal-auth').classList.add('hidden'); }
+        function setRegisterRole(r) { document.getElementById('auth-role').value = r; }
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            alert('Registro completado.');
+            closeAuthModal();
+        }
+        function seedDatabase() { location.reload(); }
+    </script>
+</body>
+</html>

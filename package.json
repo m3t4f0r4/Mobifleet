@@ -1,0 +1,12 @@
+{
+  "name": "mobifleet-espana",
+  "version": "1.0.0",
+  "description": "Marketplace Nacional de Alquiler Multimodal de Vehículos en España",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": ["marketplace", "alquiler", "vehiculos", "mobifleet", "espana"],
+  "author": "MobiFleet España",
+  "license": "MIT"
+}
